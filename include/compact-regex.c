@@ -237,9 +237,10 @@ static RegEx _COMPILE__INIT_REGEX(char* regex_pattern_string, int OPTION_FLAGS)
     regex_data->flags.EXTENDED = ((OPTION_FLAGS & REG_EXTENDED) == REG_EXTENDED);
     regex_data->flags.ICASE = ((OPTION_FLAGS & REG_ICASE) == REG_ICASE);
     regex_data->flags.NOSUB = ((OPTION_FLAGS & REG_NOSUB) == REG_NOSUB);
-    regex_data->flags.NOGROUPS = ((OPTION_FLAGS & REG_NOGROUPS) == REG_NOGROUPS);
+    regex_data->flags.NOSUBEXP = ((OPTION_FLAGS & REG_NOSUBEXP) == REG_NOSUBEXP);
     regex_data->flags.NEWLINE = ((OPTION_FLAGS & REG_NEWLINE) == REG_NEWLINE);
     regex_data->flags.MULTILINE = ((OPTION_FLAGS & REG_MULTILINE) == REG_MULTILINE);
+    regex_data->flags.SUBEXP = ((OPTION_FLAGS & REG_SUBEXP) == REG_SUBEXP);
 
     /* deactivate REG_NEWLINE if REG_MULTILINE is set, to catch newline-characters */
     if (regex_data->flags.MULTILINE == 1 && regex_data->flags.NEWLINE == 1)
@@ -251,8 +252,15 @@ static RegEx _COMPILE__INIT_REGEX(char* regex_pattern_string, int OPTION_FLAGS)
     /* disable NOSUB */
     if (regex_data->flags.NOSUB == 1)
     {
-        printf("REG_NOSUB is set. Ignoring NO_SUB option.\n");
+        printf("REG_NOSUB is set. Ignoring NO_SUB option.\n\n");
         OPTION_FLAGS -= REG_NOSUB;
+    }
+
+    if (regex_data->flags.NOSUBEXP == 1 && regex_data->flags.SUBEXP == 1)
+    {
+        printf("REG_NOSUBEXP is set. Ignoring REG_SUBEXP option.\n\n");
+        regex_data->flags.SUBEXP = 0;
+        OPTION_FLAGS -= REG_SUBEXP;
     }
 
     /* copy option flags */
@@ -325,9 +333,13 @@ static int _EXEC__SEARCH_LOCAL(char* input_text_string, RegEx regex_data)
             REG_NOTEOL: Indicates that the first character of STRING is not the end of the line. 
 
     return: if a match is found, regexec() returns 0. */
+    regmatch_t* match_iteration = __MALLOC(MAX_NUM_MATCHES * sizeof(regmatch_t));        /* match of one iteration */
     regex_data->regex_h.match_offsets = __MALLOC(MAX_NUM_MATCHES * sizeof(regmatch_t));
     regex_data->matches = __MALLOC(MAX_NUM_MATCHES * sizeof(cregmatches_t));
-    return_code = regexec(&(regex_data->regex_h.compiled_regex), input_text_string, MAX_NUM_MATCHES, (regmatch_t*)regex_data->regex_h.match_offsets, 0);
+
+    /*return_code = regexec(&(regex_data->regex_h.compiled_regex), input_text_string, MAX_NUM_MATCHES, (regmatch_t*)regex_data->regex_h.match_offsets, 0);*/
+
+    return_code = regexec(&(regex_data->regex_h.compiled_regex), input_text_string, MAX_NUM_MATCHES, (regmatch_t*)match_iteration, 0);
 
     /* copy matched strings */
     if (return_code == REGEX_MATCH_SUCCESS)
@@ -339,16 +351,16 @@ static int _EXEC__SEARCH_LOCAL(char* input_text_string, RegEx regex_data)
         for (i = 0; i < MAX_NUM_MATCHES; i++)
         {
             /* some library bug on (a)|(b) matching second group at next element instead of this */
-            if (regex_data->regex_h.match_offsets[i].rm_so == (size_t)-1)
+            if (match_iteration[i].rm_so == (size_t)-1)
             {
                 break;
             }
 
-             /* if this match is valid */
-            if (regex_data->regex_h.match_offsets[i].rm_so != (size_t)-1)
+            /* if this match is valid */
+            if (match_iteration[i].rm_so != (size_t)-1)
             { 
                 /* set the item number to one lesser, if previous match was invalid, to step over invalid matches */
-                if (i > 0 && regex_data->regex_h.match_offsets[i-1].rm_so == -1)
+                if (i > 0 && match_iteration[i-1].rm_so == -1)
                 {
                     ITEM_NUMBER = i - 1;
                 }
@@ -358,10 +370,22 @@ static int _EXEC__SEARCH_LOCAL(char* input_text_string, RegEx regex_data)
                 }
 
                 regex_data->matches[ITEM_NUMBER].number_match = MATCH_NUMBER;
-                regex_data->matches[ITEM_NUMBER].number_submatch = ITEM_NUMBER;
-                regex_data->num_matches++;
+                regex_data->matches[ITEM_NUMBER].number_submatch = regex_data->flags.SUBEXP == 0 ? ITEM_NUMBER : ITEM_NUMBER + 1;
+
+                if ((regex_data->flags.SUBEXP == 0 && regex_data->flags.NOSUBEXP == 0) ||                       /* add every result, if SUBEXP = 0 */
+                    (regex_data->flags.SUBEXP == 0 && regex_data->flags.NOSUBEXP == 1 && ITEM_NUMBER == 0) ||   /* add just the main matches, if NOSUBEXP = 1 */
+                    (regex_data->flags.SUBEXP == 1 && ITEM_NUMBER > 0))                                    
+                {
+                    memcpy(&regex_data->regex_h.match_offsets[regex_data->num_matches], &match_iteration[i], sizeof(regmatch_t));
+                    regex_data->num_matches++;
+                }
             }
         }
+
+        __FREE(match_iteration);
+
+        /* resize regex.h buffer from MAX_NUM_MATCHES to num_matches + 1 */
+        regex_data->regex_h.match_offsets = __REALLOC(regex_data->regex_h.match_offsets, (regex_data->num_matches + 1) * sizeof(regmatch_t));
 
         /* copy substrings from input text */
         _EXEC__GET_MATCHED_STRINGS(input_text_string, regex_data);
@@ -389,8 +413,8 @@ static int _EXEC__SEARCH_GLOBAL(char* input_text_string, RegEx regex_data)
     int NUMBER_SUBMATCH = 0;
 
     regmatch_t* match_iteration = __MALLOC(MAX_NUM_MATCHES * sizeof(regmatch_t));        /* match of one iteration */
-    regex_data->matches = __MALLOC(MAX_NUM_MATCHES * sizeof(cregmatches_t));
     regex_data->regex_h.match_offsets = __MALLOC(MAX_NUM_MATCHES * sizeof(regmatch_t)); /* matches of all iterations */
+    regex_data->matches = __MALLOC(MAX_NUM_MATCHES * sizeof(cregmatches_t));
 
     /* full initialize regmatch_t array fields */
     for (i = 0; i < MAX_NUM_MATCHES; i++)
@@ -482,8 +506,9 @@ static int _EXEC__SEARCH_GLOBAL(char* input_text_string, RegEx regex_data)
                     regex_data->matches[regex_data->num_matches].number_match = NUMBER_MATCH;
                     regex_data->matches[regex_data->num_matches].number_submatch = NUMBER_SUBMATCH;
 
-                    if (regex_data->flags.NOGROUPS == 0 ||                         /* add every result, if groups = 1 */
-                       (regex_data->flags.NOGROUPS == 1 && NUMBER_SUBMATCH == 0))  /* add just the main matches, if groups = 0 */
+                    if ((regex_data->flags.SUBEXP == 0 && regex_data->flags.NOSUBEXP == 0) ||                         /* add every result, if SUBEXP = 0 */
+                        (regex_data->flags.SUBEXP == 0 && regex_data->flags.NOSUBEXP == 1 && NUMBER_SUBMATCH == 0) || /* add just the main matches, if NOSUBEXP = 1 */
+                        (regex_data->flags.SUBEXP == 1 && NUMBER_SUBMATCH > 0))                                    
                     {
                         /* copy match data */
                         memcpy(&regex_data->regex_h.match_offsets[regex_data->num_matches], &match_iteration[i], sizeof(regmatch_t));
@@ -633,13 +658,21 @@ static char* _PRINT__CONCAT_OPTION_FLAGS(RegEx regex_data)
         }
         strcat(option_flags_string, "!(REG_NOSUB)");
     }
-    if (regex_data->flags.NOGROUPS == 1)
+    if (regex_data->flags.NOSUBEXP == 1)
     {
         if (strcmp(option_flags_string, ""))
         {
             strcat(option_flags_string, " | ");
         }
-        strcat(option_flags_string, "REG_NOGROUPS");
+        strcat(option_flags_string, "REG_NOSUBEXP");
+    }
+    if (regex_data->flags.SUBEXP == 1)
+    {
+        if (strcmp(option_flags_string, ""))
+        {
+            strcat(option_flags_string, " | ");
+        }
+        strcat(option_flags_string, "REG_SUBEXP");
     }
 
     return option_flags_string;
@@ -755,7 +788,7 @@ regex_data->error_message);
 }
 
 /* (Internal) Processes the result data string of the RegEx Object for printing or writing  */
-static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT)
+static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT, int print_header)
 {
     int i;
     char temp_str_buffer[4][32];
@@ -770,7 +803,8 @@ static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT)
     {
         if (PRINT_LAYOUT != REGEX_PRINT_PLAIN &&
             PRINT_LAYOUT != REGEX_PRINT_CSV &&
-            PRINT_LAYOUT != REGEX_PRINT_JSON)
+            PRINT_LAYOUT != REGEX_PRINT_JSON &&
+            print_header == 1)
         {
             sprintf(result_string, "Results:\n");
         }
@@ -1046,7 +1080,13 @@ static char* _PRINT__GET_OUTPUT_STRING(RegEx regex_data, int PRINT_LAYOUT)
         (regex_data->return_code == REGEX_COMP_SUCCESS ||
          regex_data->return_code == REGEX_MATCH_SUCCESS))
     {
-        temp_string = _PRINT__GET_RESULTS(regex_data, PRINT_LAYOUT);
+        temp_string = _PRINT__GET_RESULTS(
+            regex_data,
+            PRINT_LAYOUT,
+            !((PRINT_OPTIONS & REGEX_PRINT_NOTEXT) == REGEX_PRINT_NOTEXT &&
+              (PRINT_OPTIONS & REGEX_PRINT_NOSTATS) == REGEX_PRINT_NOSTATS)
+        );
+
         output_string =__REALLOC(output_string, (strlen(output_string) + strlen(temp_string) + 32) * sizeof(char));
         strcat(output_string, temp_string);
         strcpy(temp_string, "");
@@ -1070,7 +1110,7 @@ static char* _PRINT__GET_OUTPUT_STRING(RegEx regex_data, int PRINT_LAYOUT)
    extended flags:
    REG_GLOBAL    Uses global-search with multiple matches instead of single matching
    REG_MULTILINE Catches the newline character, automaticly deactivates REG_NEWLINE
-   REG_NOGROUPS  Ignore matching of grouped submatches by subexpressions */
+   REG_NOSUBEXP  Ignore matching of grouped submatches by SUBEXPpressions */
 void set_default_reg_flags(int OPTION_FLAGS)
 {
     int i;
@@ -1112,9 +1152,9 @@ void set_default_reg_flags(int OPTION_FLAGS)
             DEFAULT_REG_FLAGS[i] = REG_MULTILINE;
             i++;
         }
-        if ((OPTION_FLAGS & REG_NOGROUPS) == REG_NOGROUPS)
+        if ((OPTION_FLAGS & REG_NOSUBEXP) == REG_NOSUBEXP)
         {
-            DEFAULT_REG_FLAGS[i] = REG_NOGROUPS;
+            DEFAULT_REG_FLAGS[i] = REG_NOSUBEXP;
             i++;
         }
     }
@@ -1553,6 +1593,8 @@ RegExFile regex_readfile(char* file_name)
             if (MAX_TEXT_LENGTH > 104857600)
             {
                 fprintf(stderr, "Error: MAX_TEXT_LENGTH exceeds maximum size of 104857600 characters or 100 MB.\n");
+                regex_file->content = (char*)__MALLOC(1 * sizeof(char));
+                regex_file->status = 0;
             }
             else
             {   
@@ -1565,6 +1607,8 @@ RegExFile regex_readfile(char* file_name)
                 else
                 {
                     fprintf(stderr, "Error: File length exceeds maximum length of %d characters.\n", MAX_TEXT_LENGTH);
+                    regex_file->content = (char*)__MALLOC(1 * sizeof(char));
+                    regex_file->status = 0;
                 }
             }
 
@@ -1602,8 +1646,11 @@ RegExFile regex_readfile(char* file_name)
      RegExFile regex_file: The RegExFile object */
 void regex_closefile(RegExFile regex_file)
 {
-    __FREE(regex_file->content);
-    __FREE(regex_file);
+    if (regex_file != NULL)
+    {
+        __FREE(regex_file->content);
+        __FREE(regex_file);
+    }
 }
 
 /* int regex_writefile(RegEx, int, char*): Writes the contents of a RegEx Object into a file.
@@ -1615,6 +1662,7 @@ void regex_closefile(RegExFile regex_file)
    Parameters:
      regex_data    The regular expression RegEx Object of compact-regex.h
      PRINT_LAYOUT: The layout for the printed result data:
+     file_name:    The name of the file
 
    Return Value:
      Return 1 if the write was successful, or 0 if not */
@@ -1644,14 +1692,21 @@ int regex_writefile(RegEx regex_data, int PRINT_LAYOUT, char* file_name)
             if (regex_data->regex_h.reglib_status == REGLIB_COMPILED ||
                 regex_data->regex_h.reglib_status == REGLIB_EXECUTED)
             {
+                if (!((PRINT_LAYOUT & REGEX_PRINT_FILTER) == REGEX_PRINT_FILTER))
+                {
+                    printf("\n");
+                }
                 /* full_filepath = realpath(file_name, NULL); // not ANSI or Windows compatible */
                 output_string = _PRINT__GET_OUTPUT_STRING(regex_data, PRINT_LAYOUT);
-                printf("\nOutput file:      %s\n", file_name);
-                printf("Filesize:         %.1f KB\n", (double)(strlen(output_string) / 1024.0));
+                printf("Output file:      %s\n", file_name);
+                printf("Filesize:         %.2f KB\n", (double)(strlen(output_string) / 1024.0));
                 
                 if (fprintf(file_ptr, "%s", output_string) < 0)
                 {
                     printf("\nfile write error.");
+                    __FREE(output_string);
+                    fclose(file_ptr);
+                    return 0;
                 }
                 
                 __FREE(output_string);
@@ -1675,6 +1730,46 @@ int regex_writefile(RegEx regex_data, int PRINT_LAYOUT, char* file_name)
         fprintf(stderr, "regex_writefile() error: File i/o can not be initialized.\n");
         return 0;
     }
+
+    return 1;
+}
+
+/* int regex_writefile_string(char*, char*): Writes a string into a file.
+   ------------------------------------------------------------------------------------------
+   Description:
+     Writes a string into a file.
+
+   Parameters:
+     output_string: The string of the file content
+     file_name:     The name of the file
+
+   Return Value:
+     Return 1 if the write was successful, or 0 if not */
+int regex_writefile_string(char* output_string, char* file_name)
+{
+    FILE* file_ptr;
+
+    __ASSERT_PARAM(output_string, "output_string", ASSERT_TYPE_PTR);
+    __ASSERT_PARAM(file_name, "file_name", ASSERT_TYPE_PTR);
+    
+    if (MAX_FILENAME_LENGTH > 1048576)
+    {
+        fprintf(stderr, "Error: MAX_FILENAME_LENGTH exceeds maximum size of 1048576 characters.\n");
+    }
+
+    file_ptr = fopen(file_name, "w");
+
+    printf("\nOutput file:      %s\n", file_name);
+    printf("Filesize:         %.2f KB\n", (double)(strlen(output_string) / 1024.0));
+        
+    if (fprintf(file_ptr, "%s", output_string) < 0)
+    {
+        printf("\nfile write error.");
+        fclose(file_ptr);
+        return 0;
+    }
+        
+    fclose(file_ptr);
 
     return 1;
 }

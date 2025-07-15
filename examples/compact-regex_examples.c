@@ -1,6 +1,5 @@
 #include "compact-regex.h"
 
-
 void match_and_print_example(char* input_text_string, char* regex_pattern_string, int OPTION_FLAGS, int PRINT_LAYOUT)
 {
     RegEx regex_data = regex_match(input_text_string, regex_pattern_string, OPTION_FLAGS);
@@ -112,7 +111,7 @@ moel@gmail.co.in\n\
 sarah_johnson@my:example.net\n\
 mailagmx.com";
     char* regex_pattern = "([a-zA-Z0-9\\_\\.\\+\\-]+)@(([a-zA-Z0-9\\-]+)\\.([a-zA-Z0-9\\-\\.]+))";
-    match_and_print_example(input_string, regex_pattern, REG_GLOBAL | REG_EXTENDED | REG_NEWLINE | REG_NOGROUPS, REGEX_PRINT_TABLE);  
+    match_and_print_example(input_string, regex_pattern, REG_GLOBAL | REG_EXTENDED | REG_NEWLINE | REG_NOSUBEXP, REGEX_PRINT_TABLE);  
 }
 
 void validate_domain_name()
@@ -125,7 +124,7 @@ example\n\
 www.exa mple.com\n\
 www.example.my";
     char* regex_pattern = "^([-A-Za-z0-9]+\\.)+[A-Za-z]{2,6}$";
-    match_and_print_example(input_string, regex_pattern, REG_DEFAULT, REGEX_PRINT_TABLE);
+    match_and_print_example(input_string, regex_pattern, REG_GLOBAL | REG_EXTENDED | REG_NEWLINE, REGEX_PRINT_TABLE);
 }
 
 void validate_ip_addresses()
@@ -303,7 +302,7 @@ Select an example function by the number: ");
                 get_youtube_url();
                 break;
             }
-/* only if compiler-version is above c99 */            
+/* only if compiler-version is above c99 and linux terminal */            
 #if __STDC_VERSION__ >= 199901L
 #ifdef __linux__
             case 14:

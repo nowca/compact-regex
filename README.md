@@ -10,14 +10,15 @@ The program is using the POSIX-compatible [*Basic Regular Expressions (BRE)*](#b
 * simple and intuitive usage in C sourcecode
 * easy implementation
 * global search, multiple options
-* better group matching
+* better matching of subexpressions
 * use of single-letter character classes like `\d` or `\s`
 * handling of ASCII- and Unicode escape sequences
 * string replacement with group substitution
 * file read processing and export functions
 
 <br>
-*Note:* The library is not thread-safe and has no lazy-quantifiers or lookahead/lookbehind operators like in PCRE, it's just POSIX Regex.
+
+*Note: The library is not thread-safe and not Perl Regex compatible, it's currently just POSIX Regex with extensions.*
 
 <br>
 
@@ -27,7 +28,7 @@ The program is using the POSIX-compatible [*Basic Regular Expressions (BRE)*](#b
     - [Library files](#library-files)
     - [Example and usage files](#example-and-usage-files)
 - [Compiling](#compiling)
-    - [Linunx](#linux)
+    - [Linux](#linux)
     - [Windows](#windows)
 - [Integration into your project](#integration-into-your-project)
 - [How to use](#how-to-use)
@@ -47,6 +48,7 @@ The program is using the POSIX-compatible [*Basic Regular Expressions (BRE)*](#b
     - [regex_readfile()](#regex_readfile)
     - [regex_closefile()](#regex_closefile)
     - [regex_writefile()](#regex_writefile)
+    - [regex_writefile_string()](#regex_writefile_string)
 - [Program options](#program-functions)
     - [Option flags](#option-flags)
     - [Print layout](#print-layout)
@@ -58,12 +60,13 @@ The program is using the POSIX-compatible [*Basic Regular Expressions (BRE)*](#b
 - [ASCII and Unicode sequences](#ascii-and-unicode-sequences)
     - [ASCII codes](#ascii-codes)
     - [Unicode](#unicode)
-- [Matching groups and submatches](#matching-groups-and-submatches)
+- [Matching subexpressions](#matching-subexpressions)
 - [Replace strings with regular expressions](#replace-strings-with-regular-expressions)
 - [File reading and writing](#file-reading-and-writing)
     - [RegExFile Object](#regexfile-object)
     - [Reading from a file](#reading-from-a-file)
     - [Maximum value limiters](#maximum-value-limiters)
+    - [Writing to a file](#writing-to-a-file)
 
 <br>
 
@@ -120,12 +123,13 @@ user@pc:~$ gcc -Wall compact-regex_usage.c -o compact-regex_usage
 
 ### Windows
 
-To compile the program on windows, you will need a compiler version with the *regex.h library* (from gnu extensions) included:
+To compile the program on windows, you will need a compiler version with the *regex.h library*, from GNU extensions included:
 
 ```console
 C:\Users\pcuser>gcc.exe -IC:\MinGW-W64\mingw32\opt\include compact-regex_usage.c -o compact-regex_usage.exe -LC:\MinGW-W64\mingw32\opt\lib -lregex
 ```
 
+- MinGW-W64 includes the regex.h library in the `\opt\include` and `\opt\lib` folders.
 - The paths of the header and library must be included with `-I` and `-L`, with an additional `-lregex` parameter at the end of the command.
 
 <br>
@@ -357,6 +361,8 @@ char* regex_replace(char* input_text_string, char* regex_pattern_string, char* r
 ```
 Replaces *regular expression matches* with a *replacement substring* and the given [*option flags*](#option-flags).
 
+The *replacement substring* can be used with group references (`"\1"`, `"\2"`, `"\3"`...)
+
 **Return value**:  The output string with the replaced substring values.
 
 <br>
@@ -406,6 +412,19 @@ int regex_writefile(RegEx regex_data, int PRINT_LAYOUT, char* file_name)
 ```
 Writes the input text and the regular expression results and contents of a [`RegEx`](#regex-object) Object as a table or table into a file with a given [print layout](#print-layout).
 
+**Return value**:  Return 1 if the write was successful, or 0 if not
+
+<br>
+
+### regex_writefile_string()
+
+```c
+int regex_writefile_string(char* output_string, char* file_name)
+```
+Writes a string into a file.
+
+**Return value**:  Return 1 if the write was successful, or 0 if not
+
 <br>
 
 ## Program options
@@ -429,7 +448,7 @@ Additionaly `REG_NEWLINE` is documented in *Regex - edition 0.12a - 1992* as fol
 > - match-any-character operator (see Section 3.2 [Match-any-character Operator],
 page 9) doesn’t match a newline.
 > - nonmatching list not containing a newline (see Section 3.6 [List Operators],
-page 13) matches a newline.
+page 13) matches a newline.`REG_NOSUB`
 > - match-beginning-of-line operator (see Section 3.9.1 [Match-beginning-of-line Op-
 erator], page 18) matches the empty string immediately after a newline, regardless
 of how REG_NOTBOL is set (see Section 7.2.3 [POSIX Matching], page 37, for an
@@ -439,8 +458,12 @@ page 18) matches the empty string immediately before a newline, regardless of ho
 REG_NOTEOL is set (see Section 7.2.3 [POSIX Matching], page 37, for an explanation
 of REG_NOTEOL).
 
-
 * `REG_NOSUB` - Report only success or fail in `regexec()`, that is, verify the syntax of a *regular expression*. If this flag is set, the `regcomp()` function sets `re_nsub` to the number of parenthesized *sub-expressions* found in pattern. Otherwise, a sub-expression results in an error.
+
+**(!) The `REG_NOSUB` option flag is deactivated in the program.**
+
+<br>
+
 
 The *compact-regex.h* library adds the following additional flags as optional functions:
 
@@ -448,7 +471,9 @@ The *compact-regex.h* library adds the following additional flags as optional fu
 
 * `REG_MULTILINE` - Catches the newline character, automaticly deactivates `REG_NEWLINE`
 
-* `REG_NOGROUPS` - Ignore matching of grouped submatches by subexpressions 
+* `REG_NOSUBEXP` - Ignore matching of grouped submatches by subexpressions
+
+* `REG_SUBEXP` - Match only subexpressions 
 
 <br>
 
@@ -590,8 +615,9 @@ int EXTENDED;
 int ICASE;
 int MULTILINE;
 int NEWLINE;
-int NOSUB;
-int NOGROUPS;
+int NOSUB;           /* note: REG_NOSUB is deactivated in the program */
+int NOSUBEXP;
+int SUBEXP
 ```
 
 - The can be set with the [Option flags](#option-flags) on [`regex_compile()`](#regex_compile) or [`regex_match()`](#regex_match).
@@ -602,11 +628,11 @@ int NOGROUPS;
 
 The subobject `regexobj->matches[i]` contains the *regex match result data*:
 ```c
-int number_match;           /* number of the match */
-int number_submatch;        /* number of the group or submatch */
-int start;                  /* byte offset from string's start to substring's start. */
-int end;                    /* byte offset from string's start to substring's end. */
-char* string;               /* string of the sub-expression match */
+int number_match;    /* number of the match */
+int number_submatch; /* number of the group or submatch */
+int start;           /* byte offset from string's start to substring's start. */
+int end;             /* byte offset from string's start to substring's end. */
+char* string;        /* string of the sub-expression match */
 ```
 
 <br>
@@ -696,7 +722,7 @@ regex_exec("! € µ ? x y z", regex_data);
 
 <br>
 
-## Matching groups and submatches
+## Matching subexpressions
 
 Groups (or submatches) in a regular expression can be matched in a text with the use of parentheses as *subexpressions* to create numbered capture groups.
 
@@ -719,6 +745,10 @@ Groups (or submatches) in a regular expression can be matched in a text with the
 
 <br>
 
+It is possible to match only the *subexpressions* with the `REG_SUBEXP` option flag, see [option flags](#option-flags).
+
+<br>
+
 ## Replace strings with regular expressions
 
 The [regex_replace()](#regex_replace) function replaces all matches of a *regular expression* with a *substring*:
@@ -735,8 +765,17 @@ char* output_string = regex_replace("Mr Black is changing his 6 strings on his B
 
 <br>
 
+**Example with group references:**
 
-**Example for multiple replacements:**
+- This will replace `"ABC"` with `"CBA"`:
+
+```c
+char* output_string = regex_replace("ABC", "(A)(B)(C)", "\\3\\2\\1", REG_DEFAULT);
+```
+
+<br>
+
+**Example with multiple replacements:**
 
 ```c
 int option_flags = REG_GLOBAL | REG_ICASE;
@@ -810,6 +849,8 @@ if (regex_file->status > 0)
 
 - The [RegExFile](#regexfile-object) must also be closed with `regex_closefile()` to free the allocated memory.
 
+- The [RegExFile](#regexfile-object) must be set to `NULL` before `regex_closefile()`, if `regex_readfile()` is not called, to avoid a runtime error.
+
 
 > The program can handle large text files with more than 1.000.000 lines and over 100.000 matches. It is tested with larger files over 10 MB up to 100 MB. But very large text files with more than 10.000 matches can take a long time to process (more than 10 minutes).
 
@@ -832,7 +873,15 @@ unsigned int MAX_FILENAME_LENGTH = 256;
 
 ### Writing to a file
 
+<br>
+
+#### regex_writefile()
+
 The [regex_writefile()](#regex_writefile) function is quite similar to the [regex_print()](#regex_print) function. It can be used in the same way for printing the content into a formated text file using the [Print layout](#print-layout).
+
+<br>
+
+**Examples:**
 
 ```c
 regex_writefile(regex_data, REGEX_PRINT_PLAIN, "output_words.txt");
@@ -858,6 +907,19 @@ regex_writefile(regex_data, REGEX_PRINT_JSON, "output_reg_file.json");
 
 <br>
 
+#### regex_writefile_string()
+
+The [regex_writefile_string()](#regex_writefile_string) function can be used to print a basic string into a file.
+
+<br>
+
+**Example:**
+
+```c
+regex_writefile_string(output_string, "replaced_words.txt");
+```
+
+<br>
 
 ### Acknowledgements
 

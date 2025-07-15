@@ -46,7 +46,8 @@ unsigned int MAX_FILENAME_LENGTH = 512;
 #define REG_DEFAULT 0
 #define REG_GLOBAL (1 << 4)
 #define REG_MULTILINE (1 << 5)
-#define REG_NOGROUPS (1 << 6)
+#define REG_NOSUBEXP (1 << 6)
+#define REG_SUBEXP (1 << 7)
 
 int DEFAULT_REG_FLAGS[7] = {
     REG_GLOBAL,
@@ -61,25 +62,26 @@ typedef struct t_substruct__flags {
     int ICASE;
     int MULTILINE;
     int NEWLINE;
-    int NOSUB;
-    int NOGROUPS;
+    int NOSUB;           /* note: REG_NOSUB is deactivated in the program */
+    int NOSUBEXP;
+    int SUBEXP;
 } cregflags_t;
 
 /* RegEx-subobject for result data of the regular expression matches */
 typedef struct t_substruct__match_offsets {
-    int number_match;           /* number of the match */
-    int number_submatch;        /* number of the group or submatch */
-    int start;                  /* byte offset from string's start to substring's start. */
-    int end;                    /* byte offset from string's start to substring's end. */
-    char* string;               /* string of the sub-expression match */
+    int number_match;    /* number of the match */
+    int number_submatch; /* number of the group or submatch */
+    int start;           /* byte offset from string's start to substring's start. */
+    int end;             /* byte offset from string's start to substring's end. */
+    char* string;        /* string of the sub-expression match */
 } cregmatches_t;
 
 typedef struct t_substruct__file {
-    FILE* ptr;          /* pointer to the FILE object for reading and writing*/
-    char* name;         /* filename string */
-    char* content;      /* file content */
-    int status;         /* status of fread */
-    int length;         /* file-length */
+    FILE* ptr;           /* pointer to the FILE object for reading and writing*/
+    char* name;          /* filename string */
+    char* content;       /* file content */
+    int status;          /* status of fread */
+    int length;          /* file-length */
 } cregfile_t;
 
 /* regex.h processing status flags */
@@ -172,7 +174,7 @@ static char* _PRINT__GET_TEXT_STRING(RegEx regex_data);
 static char* _PRINT__GET_REGEX_STATS(RegEx regex_data, char* option_flags_string);
 
 /* (Internal) Processes the result data string of the RegEx Object for printing or writing  */
-static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT);
+static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT, int print_header);
 
 /* (Internal) Processes the complete string (text + data + results) for printing or writing  */
 static char* _PRINT__GET_OUTPUT_STRING(RegEx regex_data, int PRINT_LAYOUT);
@@ -209,20 +211,24 @@ extern void regex_closefile(RegExFile regex_file);
 /* Writes the contents of a RegEx Object into a file. */
 extern int regex_writefile(RegEx regex_data, int PRINT_LAYOUT, char* file_name);
 
+/* int regex_writefile_string(char*, char*): Writes a string into a file. */
+extern int regex_writefile_string(char* output_string, char* file_name);
+
 /* Option flags for regex_print */
 #define REGEX_PRINT_NONE -1
-#define REGEX_PRINT_TABLE 8
-#define REGEX_PRINT_LIST 16
-#define REGEX_PRINT_LIST_FULL 32
-#define REGEX_PRINT_PLAIN 64
-#define REGEX_PRINT_CSV 128
-#define REGEX_PRINT_JSON 256
-#define REGEX_PRINT_EXT 1024
+#define REGEX_PRINT_TABLE (1 << 1)
+#define REGEX_PRINT_LIST (1 << 2)
+#define REGEX_PRINT_LIST_FULL (1 << 3)
+#define REGEX_PRINT_PLAIN (1 << 4)
+#define REGEX_PRINT_CSV (1 << 5)
+#define REGEX_PRINT_JSON (1 << 6)
+#define REGEX_PRINT_EXT (1 << 7)
 
-#define REGEX_PRINT_FULLTEXT (REGEX_PRINT_EXT << 1)
-#define REGEX_PRINT_NOTEXT (REGEX_PRINT_FULLTEXT << 1)
-#define REGEX_PRINT_NOSTATS (REGEX_PRINT_NOTEXT << 1)
-#define REGEX_PRINT_NORESULTS (REGEX_PRINT_NOSTATS << 1)
+#define REGEX_PRINT_FULLTEXT (1 << 8)
+#define REGEX_PRINT_NOTEXT (1 << 9)
+#define REGEX_PRINT_NOSTATS (1 << 10)
+#define REGEX_PRINT_NORESULTS (1 << 11)
+#define REGEX_PRINT_FILTER (1 << 12)
 
 /* Prints the input text and the regular expression results and contents of a
    RegEx Object as a table or as a list. */

@@ -1,16 +1,5 @@
 #include "include/compact-regex.h"
 
-/*
-    windows compilation ?
-
-    more \r\n than 256 ?
-
-    - gui
-    - pcre1
-    - valgrind
-    -a ansi
-*/
-
 /* example for most simple regex */
 void simple_usage()
 {
