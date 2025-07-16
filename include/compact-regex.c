@@ -1042,6 +1042,10 @@ static char* _PRINT__GET_OUTPUT_STRING(RegEx regex_data, int PRINT_LAYOUT)
     {
         PRINT_LAYOUT = PRINT_LAYOUT - REGEX_PRINT_NORESULTS;
     }
+    if ((PRINT_LAYOUT & REGEX_PRINT_FILTER) == REGEX_PRINT_FILTER)
+    {
+        PRINT_LAYOUT = PRINT_LAYOUT - REGEX_PRINT_FILTER;
+    }
 
     if (PRINT_LAYOUT != REGEX_PRINT_PLAIN &&
         PRINT_LAYOUT != REGEX_PRINT_CSV &&
@@ -1684,8 +1688,8 @@ int regex_writefile(RegEx regex_data, int PRINT_LAYOUT, char* file_name)
     if (regex_data->return_code != REGEX_ERROR)
     {
         if (regex_data != NULL &&
-        PRINT_LAYOUT != REGEX_PRINT_NONE &&
-        regex_data->regex_h.reglib_status != REGLIB_ERROR)
+            PRINT_LAYOUT != REGEX_PRINT_NONE &&
+            regex_data->regex_h.reglib_status != REGLIB_ERROR)
         {
             FILE* file_ptr = fopen(file_name, "w");
 

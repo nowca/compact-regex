@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -I../include/
+CFLAGS = -static -I../include/
 SRC1 = compact-regex_examples
 SRC2 = compact-regex_file-reading
 FILETYPE = .c

@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS =
+CFLAGS = -static
 LFLAGS =
 SRC = compact-regex_usage
 FILETYPE = .c

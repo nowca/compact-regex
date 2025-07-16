@@ -37,7 +37,7 @@ extern "C" {
 /* Memory limiters */
 unsigned int MAX_TEXT_LENGTH = 8192;
 unsigned int MAX_PATTERN_LENGTH = 1024;
-unsigned int MAX_NUM_MATCHES = 512;
+unsigned int MAX_NUM_MATCHES = 1024;
 unsigned int MAX_PRINT_TEXT_LENGTH = 512;
 unsigned int MAX_FILENAME_LENGTH = 512;
 

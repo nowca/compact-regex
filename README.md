@@ -5,7 +5,7 @@ This is a *C89/ANSI-C* compatible extension for the *regex.h POSIX/GNU Regular E
 It is designed as a very simple and modern extension wrapper library for fast implementation of Regex in C or C-compatible projects
 like prototyping or basic tasks with regular expressions.
 
-The program is using the POSIX-compatible [*Basic Regular Expressions (BRE)*](#basic-regular-syntax) and [*Extended Regular Expressions (ERE)*](#extended-regular-syntax) standard by the Open Group and extended functions:
+The program is using the POSIX-compatible [*Basic Regular Expressions (BRE)*](#basic-regular-syntax) and [*Extended Regular Expressions (ERE)*](#extended-regular-syntax) standard by the Open Group with extended functions:
 
 * simple and intuitive usage in C sourcecode
 * easy implementation
@@ -114,7 +114,7 @@ user@pc:~$ make
 ...or compile it directly with the GNU-C-Compiler:
 
 ```console
-user@pc:~$ gcc -Wall compact-regex_usage.c -o compact-regex_usage
+user@pc:~$ gcc -Wall -static compact-regex_usage.c -o compact-regex_usage
 ```
 
 - The GNU Extensions with the regex.h library are needed for successful compilation. Please take care of including the neccesary header and library files.
@@ -126,11 +126,13 @@ user@pc:~$ gcc -Wall compact-regex_usage.c -o compact-regex_usage
 To compile the program on windows, you will need a compiler version with the *regex.h library*, from GNU extensions included:
 
 ```console
-C:\Users\pcuser>gcc.exe -IC:\MinGW-W64\mingw32\opt\include compact-regex_usage.c -o compact-regex_usage.exe -LC:\MinGW-W64\mingw32\opt\lib -lregex
+C:\Users\pcuser>gcc.exe -static -IC:\MinGW-W64\mingw32\opt\include compact-regex_usage.c -o compact-regex_usage.exe -LC:\MinGW-W64\mingw32\opt\lib -lregex
 ```
 
 - MinGW-W64 includes the regex.h library in the `\opt\include` and `\opt\lib` folders.
 - The paths of the header and library must be included with `-I` and `-L`, with an additional `-lregex` parameter at the end of the command.
+- `-static` can be used to make your project independend from libraries.
+- The path of gcc.exe must be added to the Windows PATH user-variable
 
 <br>
 
@@ -863,7 +865,7 @@ The maximum value limiters can be changed to larger size values:
 /* Memory limiters */
 unsigned int MAX_TEXT_LENGTH = 8192;
 unsigned int MAX_PATTERN_LENGTH = 1024;
-unsigned int MAX_NUM_MATCHES = 512;
+unsigned int MAX_NUM_MATCHES = 1024;
 unsigned int MAX_PRINT_TEXT_LENGTH = 512;
 unsigned int MAX_FILENAME_LENGTH = 256;
 ```
@@ -926,6 +928,8 @@ regex_writefile_string(output_string, "replaced_words.txt");
 * Regex (edition 0.12) - Kathryn A. Hargreaves, Karl Berry
 You can read a compiled version of their documentation in the subfolder: `documentation/Regex - edition 0.12a - 1992.pdf`
 
-* the makers of *Sublime Text* for a very nice text editor software.
+* The makers of *Sublime Text* for a very nice text editor software.
+
+* List Of English Words - https://github.com/dwyl/english-words
 
 <br>
