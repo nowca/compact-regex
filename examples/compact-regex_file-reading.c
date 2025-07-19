@@ -89,7 +89,8 @@ int main(int argc, char* argv[])
     {
         printf(" [1] read_port_numbers_csv_file()\n\
  [2] read_windows_formatted_file()\n\
- [3] read_large_word_list_file()\n\
+ [3] read_large_word_list_file()\n\n\
+ [0]  exit\n\
 \n\
 Select an example function by the number: ");
 
@@ -111,6 +112,10 @@ Select an example function by the number: ");
                 {
                     read_large_word_list_file();
                     break;
+                }
+                case 0:
+                {
+                    exit(EXIT_SUCCESS);
                 }
                 default:
                 {

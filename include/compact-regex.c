@@ -706,19 +706,53 @@ static char* _PRINT__GET_TEXT_STRING(RegEx regex_data)
 
     if (MAX_PRINT_TEXT_LENGTH > 0 && (strlen(regex_data->text) > MAX_PRINT_TEXT_LENGTH))
     {
-        sprintf(text_string, "Text (first %d characters):\n", MAX_PRINT_TEXT_LENGTH);
+        if (PRINT_COLORED == 1)
+        {
+            sprintf(text_string, "\033[34mText (first %d characters):\033[0m\n", MAX_PRINT_TEXT_LENGTH);
+        }
+        else
+        {
+            sprintf(text_string, "Text (first %d characters):\n", MAX_PRINT_TEXT_LENGTH);
+        }
+        
         temp_string[MAX_PRINT_TEXT_LENGTH] = '\0';
-        strcat(temp_string, "[...]\n[...]");
+
+        if (PRINT_COLORED == 1)
+        {
+            strcat(temp_string, "\033[90m[...]\n[...]\033[0m");
+        }
+        else
+        {
+            strcat(temp_string, "[...]\n[...]");
+        }
+
         strcat(text_string, temp_string);
     }
     else
     {
         text_string = __REALLOC(text_string, (MAX_TEXT_LENGTH + 512) * sizeof(char));
-        sprintf(text_string, "Text:\n");
+
+        if (PRINT_COLORED == 1)
+        {
+            sprintf(text_string, "\033[34mText:\033[0m\n");
+        }
+        else
+        {
+            sprintf(text_string, "Text:\n");
+        }
+        
         strcat(text_string, regex_data->text);
     }
 
-    sprintf(temp_string, "%s\n\nString-length:    %d\n\n", text_string, (int)strlen(regex_data->text));
+    if (PRINT_COLORED == 1)
+    {
+        sprintf(temp_string, "%s\n\n\033[36mString-length:\033[0m    %d\n\n", text_string, (int)strlen(regex_data->text));
+    }
+    else
+    {
+        sprintf(temp_string, "%s\n\nString-length:    %d\n\n", text_string, (int)strlen(regex_data->text));
+    }
+   
     strcpy(text_string, temp_string);
 
     if (MAX_PRINT_TEXT_LENGTH > 0)
@@ -740,12 +774,29 @@ static char* _PRINT__GET_REGEX_STATS(RegEx regex_data, char* option_flags_string
 {
     char* regex_data_string = __MALLOC((MAX_PATTERN_LENGTH + 512) * sizeof(char));
     char* temp_string = __MALLOC((MAX_PATTERN_LENGTH + 256) * sizeof(char));
+    char* filename_string;
 
     strcpy(temp_string, regex_data->pattern);
     temp_string = __SUBSTITUTE_STRING(temp_string, "\r", "\\r", REPLACE_NO_BRACKETS, REPLACE_GLOBAL, 0);
     temp_string = __SUBSTITUTE_STRING(temp_string, "\n", "\\n", REPLACE_NO_BRACKETS, REPLACE_GLOBAL, 0);
 
-    if (regex_data->file == NULL)
+    if (PRINT_COLORED == 1)
+    {
+        sprintf(regex_data_string, "\
+\033[34mRegex-Pattern:\033[0m    %s\n\
+\033[36mRegex-Flags:\033[0m      %s\n\
+\033[36mSub-Expressions:\033[0m  %d\n\
+\033[36mTotal Matches:\033[0m    %d\n\
+\033[36mReturn Code:\033[0m      %i\n\
+\033[36mError Message:\033[0m    %s\n\n",
+temp_string,
+option_flags_string,
+regex_data->num_pattern_subexpr,
+regex_data->num_matches,
+regex_data->return_code,
+regex_data->error_message);
+    }
+    else
     {
         sprintf(regex_data_string, "\
 Regex-Pattern:    %s\n\
@@ -761,24 +812,24 @@ regex_data->num_matches,
 regex_data->return_code,
 regex_data->error_message);
     }
-    else if (regex_data->file->length > 0)
+
+    if (regex_data->file != NULL && regex_data->file->length > 0)
     {
+        filename_string = __MALLOC((MAX_FILENAME_LENGTH) * sizeof(char));
         regex_data_string = __REALLOC(regex_data_string, (MAX_FILENAME_LENGTH + MAX_PATTERN_LENGTH + 512) * sizeof(char));
-        sprintf(regex_data_string, "\
-Filename:         %s\n\n\
-Regex-Pattern:    %s\n\
-Regex-Flags:      %s\n\
-Sub-Expressions:  %d\n\
-Total Matches:    %d\n\
-Return Code:      %i\n\
-Error Message:    %s\n\n",
-regex_data->file->name,
-temp_string,
-option_flags_string,
-regex_data->num_pattern_subexpr,
-regex_data->num_matches,
-regex_data->return_code,
-regex_data->error_message);
+
+        /* shift and prepend */
+        if (PRINT_COLORED == 1)
+        {
+            sprintf(filename_string, "\033[36mFilename:\033[0m         %s\n\n", regex_data->file->name);
+        }
+        else
+        {
+            sprintf(filename_string, "Filename:         %s\n\n", regex_data->file->name);
+        }
+        
+        memmove(regex_data_string + strlen(filename_string), regex_data_string, strlen(regex_data_string) + 1);
+        memcpy(regex_data_string, filename_string, strlen(filename_string));
     }
 
     __FREE(option_flags_string);
@@ -788,7 +839,7 @@ regex_data->error_message);
 }
 
 /* (Internal) Processes the result data string of the RegEx Object for printing or writing  */
-static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT, int print_header)
+static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT, int print_header, int print_position)
 {
     int i;
     char temp_str_buffer[4][32];
@@ -801,22 +852,70 @@ static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT, int print_h
     
     if (regex_data->num_matches > 0)
     {
-        if (PRINT_LAYOUT != REGEX_PRINT_PLAIN &&
-            PRINT_LAYOUT != REGEX_PRINT_CSV &&
-            PRINT_LAYOUT != REGEX_PRINT_JSON &&
-            print_header == 1)
+        if (print_header == 1)
         {
-            sprintf(result_string, "Results:\n");
+            if (PRINT_COLORED == 1)
+            {
+                sprintf(result_string, "\033[34mResults:\033[0m\n");
+            }
+            else
+            {
+                sprintf(result_string, "Results:\n");
+            }
         }
         if (PRINT_LAYOUT == REGEX_PRINT_CSV)
         {
-            strcat(result_string, "number;match;submatch;start;end;substring;\n");
+            if (print_position)
+            {
+                if (PRINT_COLORED == 1)
+                {
+                    strcat(result_string, "\033[36mnumber;match;submatch;start;end;substring;\033[0m\n");
+                }
+                else
+                {
+                    strcat(result_string, "number;match;submatch;start;end;substring;\n");
+                }
+            }
+            else
+            {
+                if (PRINT_COLORED == 1)
+                {
+                    strcat(result_string, "\033[36mnumber;match;submatch;substring;\033[0m\n");
+                }
+                else
+                {
+                    strcat(result_string, "number;match;submatch;substring;\n");
+                }
+            }       
         }
         if (PRINT_LAYOUT == REGEX_PRINT_TABLE)
         {
             /* count number of digits to set space holder */
             sprintf(temp_str_buffer[0], "%d", regex_data->matches[regex_data->num_matches-1].end);
-            sprintf(output_string, "#   Match   Submatch    Start  %*sEnd     Substring\n", (int)strlen(temp_str_buffer[0]), " ");
+            
+            if (print_position)
+            {
+                if (PRINT_COLORED == 1)
+                {
+                    sprintf(output_string, "\033[36m#   Match   Submatch    Start  %*sEnd     Substring\033[0m\n", (int)strlen(temp_str_buffer[0]), " ");
+                }
+                else
+                {
+                    sprintf(output_string, "#   Match   Submatch    Start  %*sEnd     Substring\n", (int)strlen(temp_str_buffer[0]), " ");
+                }
+            }
+            else
+            {
+                if (PRINT_COLORED == 1)
+                {
+                    sprintf(output_string, "\033[36m#   Match   Submatch     Substring\033[0m\n");
+                }
+                else
+                {
+                    sprintf(output_string, "#   Match   Submatch     Substring\n");
+                }
+            }
+
             strcat(result_string, output_string);
         }
         if (PRINT_LAYOUT == REGEX_PRINT_JSON)
@@ -830,18 +929,36 @@ static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT, int print_h
             substring = __SUBSTITUTE_STRING(substring, "\n", "\\n", REPLACE_NO_BRACKETS, REPLACE_GLOBAL, 0);
             substring = __SUBSTITUTE_STRING(substring, "\\", "\\\\", REPLACE_NO_BRACKETS, REPLACE_GLOBAL, 0);
 
-            sprintf(output_string, "{\n\
+            if (PRINT_COLORED == 1)
+            {
+                sprintf(output_string, "{\n\
+\t\033[36m\"text-length\":\033[0m %d\033[90m,\033[0m\n\
+\t\033[36m\"regular expression\":\033[0m \"%s\"\033[90m,\033[0m\n\
+\t\033[36m\"sub-expressions\":\033[0m %d\033[90m,\033[0m\n\
+\t\033[36m\"total matches\":\033[0m %d\033[90m,\033[0m\n\
+\t\033[36m\"matches\":\033[0m",
+                (int)strlen(regex_data->text),
+                substring,
+                regex_data->num_pattern_subexpr,
+                regex_data->num_matches);
+                strcat(output_string, " [\n");
+                strcat(result_string, output_string);
+            }
+            else
+            {
+                sprintf(output_string, "{\n\
 \t\"text-length\": %d,\n\
 \t\"regular expression\": \"%s\",\n\
 \t\"sub-expressions\": %d,\n\
 \t\"total matches\": %d,\n\
 \t\"matches\":",
-(int)strlen(regex_data->text),
-substring,
-regex_data->num_pattern_subexpr,
-regex_data->num_matches);
-            strcat(output_string, " [\n");
-            strcat(result_string, output_string);
+                (int)strlen(regex_data->text),
+                substring,
+                regex_data->num_pattern_subexpr,
+                regex_data->num_matches);
+                strcat(output_string, " [\n");
+                strcat(result_string, output_string);
+            }
         }
 
         for (i = 0; i < regex_data->num_matches; i++)
@@ -872,24 +989,85 @@ regex_data->num_matches);
                     strcpy(PRINTF_FORMAT_STR, "%d %4d       %4d");
                 }
 
-                /* set placeholders for Start  %*sEnd */
-                sprintf(temp_str_buffer[0], "%d", regex_data->matches[regex_data->num_matches-1].end);
-                strcat(PRINTF_FORMAT_STR, " %8d -> %");
-                sprintf(temp_str_buffer[1], "%d", 1 + (int)strlen(temp_str_buffer[0]));
-                strcat(PRINTF_FORMAT_STR, temp_str_buffer[1]);
-                strcat(PRINTF_FORMAT_STR, "d  %c  %s\n");
+                if (print_position)
+                {
+                    /* set placeholders for Start  %*sEnd */
+                    if (PRINT_COLORED == 1)
+                    {
+                        sprintf(temp_str_buffer[0], "%d", regex_data->matches[regex_data->num_matches-1].end);
+                        strcat(PRINTF_FORMAT_STR, " \033[90m%8d -> %");
+                        sprintf(temp_str_buffer[1], "%d", 1 + (int)strlen(temp_str_buffer[0]));
+                        strcat(PRINTF_FORMAT_STR, temp_str_buffer[1]);
+                        if (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0)
+                        {
+                            strcat(PRINTF_FORMAT_STR, "d\033[0m  %c  \033[35m%s\033[0m\n");
+                        }
+                        else
+                        {
+                            strcat(PRINTF_FORMAT_STR, "d\033[0m  %c  %s\n");
+                        }
+                    }
+                    else
+                    {
+                        sprintf(temp_str_buffer[0], "%d", regex_data->matches[regex_data->num_matches-1].end);
+                        strcat(PRINTF_FORMAT_STR, " %8d -> %");
+                        sprintf(temp_str_buffer[1], "%d", 1 + (int)strlen(temp_str_buffer[0]));
+                        strcat(PRINTF_FORMAT_STR, temp_str_buffer[1]);
+                        strcat(PRINTF_FORMAT_STR, "d  %c  %s\n");
+                    }
+                }
+                else
+                {
+                    /* set placeholders for Start  %*sEnd */
+                    if (PRINT_COLORED == 1)
+                    {
+                        sprintf(temp_str_buffer[0], "%d", regex_data->matches[regex_data->num_matches-1].end);
+                        strcat(PRINTF_FORMAT_STR, " \033[90m");
+                        sprintf(temp_str_buffer[1], " ");
+                        strcat(PRINTF_FORMAT_STR, temp_str_buffer[1]);
+                        if (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0)
+                        {
+                            strcat(PRINTF_FORMAT_STR, "\033[0m%c  \033[35m%s\033[0m\n");
+                        }
+                        else
+                        {
+                            strcat(PRINTF_FORMAT_STR, "\033[0m%c  %s\n");
+                        }
+                    }
+                    else
+                    {
+                        sprintf(temp_str_buffer[0], "%d", regex_data->matches[regex_data->num_matches-1].end);
+                        strcat(PRINTF_FORMAT_STR, " ");
+                        sprintf(temp_str_buffer[1], " ");
+                        strcat(PRINTF_FORMAT_STR, temp_str_buffer[1]);
+                        strcat(PRINTF_FORMAT_STR, "%c  %s\n");
+                    }
+                }
 
                 /* set all values */
                 output_string = __REALLOC(output_string, (strlen(regex_data->matches[i].string) + 512) * sizeof(char));
-                sprintf(output_string, PRINTF_FORMAT_STR,
-                    i + 1,
-                    regex_data->matches[i].number_match,
-                    regex_data->matches[i].number_submatch,
-                    regex_data->matches[i].start,
-                    regex_data->matches[i].end,
-                    (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0 ? '*' : ' '),
-                    substring
-                );
+                if (print_position)
+                {
+                    sprintf(output_string, PRINTF_FORMAT_STR,
+                        i + 1,
+                        regex_data->matches[i].number_match,
+                        regex_data->matches[i].number_submatch,
+                        regex_data->matches[i].start,
+                        regex_data->matches[i].end,
+                        (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0 ? '*' : ' '),
+                        substring
+                    );
+                }
+                else
+                {
+                    sprintf(output_string, PRINTF_FORMAT_STR,
+                        i + 1,
+                        regex_data->matches[i].number_match,
+                        regex_data->matches[i].number_submatch,
+                        (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0 ? '*' : ' '),
+                        substring
+                    );
+                }
 
                 /* concatinate strings to table row */
                 result_string = __REALLOC(result_string, (strlen(result_string) + strlen(output_string) + 32) * sizeof(char));
@@ -899,11 +1077,57 @@ regex_data->num_matches);
             {
                 /* set all values */
                 output_string = __REALLOC(output_string, (strlen(regex_data->matches[i].string) + 256) * sizeof(char));
-                sprintf(temp_str_buffer[0], "[%d]", i+1);
-                sprintf(temp_str_buffer[1], "(%d-%d)", regex_data->matches[i].start, regex_data->matches[i].end);
 
+                if (print_position)
+                {
+                    if (PRINT_COLORED == 1)
+                    {
+                        sprintf(temp_str_buffer[0], "\033[32m[%d]\033[0m", i+1);
+                        sprintf(temp_str_buffer[1], "\033[90m(%d-%d)\033[0m", regex_data->matches[i].start, regex_data->matches[i].end);
+
+                        if (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0)
+                        {
+                            sprintf(output_string, "%-4s %12s: \033[35m%s\033[0m", temp_str_buffer[0], temp_str_buffer[1], substring);
+                        }
+                        else
+                        {
+                            sprintf(output_string, "%-4s %12s: %s", temp_str_buffer[0], temp_str_buffer[1], substring);
+                        }
+                        
+                    }
+                    else
+                    {
+                        sprintf(temp_str_buffer[0], "[%d]", i+1);
+                        sprintf(temp_str_buffer[1], "(%d-%d)", regex_data->matches[i].start, regex_data->matches[i].end);
+                        sprintf(output_string, "%-4s %12s: %s", temp_str_buffer[0], temp_str_buffer[1], substring);
+                    }
+                }
+                else
+                {
+                    if (PRINT_COLORED == 1)
+                    {
+                        sprintf(temp_str_buffer[0], "\033[32m[%d]\033[0m", i+1);
+
+                        if (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0)
+                        {
+                            sprintf(output_string, "%-4s: \033[35m%s\033[0m", temp_str_buffer[0], substring);
+                        }
+                        else
+                        {
+                            sprintf(output_string, "%-4s: %s", temp_str_buffer[0], substring);
+                        }
+                        
+                    }
+                    else
+                    {
+                        sprintf(temp_str_buffer[0], "[%d]", i+1);
+                        sprintf(output_string, "%-4s %12s: %s", temp_str_buffer[0], temp_str_buffer[1], substring);
+                    }
+                }
+
+                
+                
                 /* add Substring */
-                sprintf(output_string, "%-4s %12s: %s", temp_str_buffer[0], temp_str_buffer[1], substring);
                 strcat(output_string, "\n");
 
                 /* concatinate all strings to list entry */
@@ -914,14 +1138,82 @@ regex_data->num_matches);
             {
                 /* set all values and substring*/
                 output_string = __REALLOC(output_string, (strlen(regex_data->matches[i].string) + 256) * sizeof(char));
-                sprintf(output_string, "[%d]\nMatch      %d\nSubmatch:  %d\nStart:     %d\nEnd:       %d\nSubstring: %s\n",
-                    i + 1,
-                    regex_data->matches[i].number_match,
-                    regex_data->matches[i].number_submatch,
-                    regex_data->matches[i].start,
-                    regex_data->matches[i].end,
-                    regex_data->matches[i].string
-                );  
+
+                if (print_position)
+                {
+                    if (PRINT_COLORED == 1)
+                    {
+                        if (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0)
+                        {
+                            sprintf(output_string, "\033[36m[%d]\033[0m\n\033[32mMatch:\033[0m     %d\n\033[32mSubmatch:\033[0m  %d\n\033[32mStart:\033[0m     %d\n\033[32mEnd:\033[0m       %d\n\033[32mSubstring:\033[0m \033[35m%s\033[0m\n",
+                                i + 1,
+                                regex_data->matches[i].number_match,
+                                regex_data->matches[i].number_submatch,
+                                regex_data->matches[i].start,
+                                regex_data->matches[i].end,
+                                regex_data->matches[i].string
+                            ); 
+                        }
+                        else
+                        {
+                            sprintf(output_string, "\033[36m[%d]\033[0m\n\033[32mMatch:\033[0m     %d\n\033[32mSubmatch:\033[0m  %d\n\033[32mStart:\033[0m     %d\n\033[32mEnd:\033[0m       %d\n\033[32mSubstring:\033[0m %s\n",
+                                i + 1,
+                                regex_data->matches[i].number_match,
+                                regex_data->matches[i].number_submatch,
+                                regex_data->matches[i].start,
+                                regex_data->matches[i].end,
+                                regex_data->matches[i].string
+                            ); 
+                        }
+                        
+                    }
+                    else
+                    {
+                        sprintf(output_string, "[%d]\nMatch      %d\nSubmatch:  %d\nStart:     %d\nEnd:       %d\nSubstring: %s\n",
+                            i + 1,
+                            regex_data->matches[i].number_match,
+                            regex_data->matches[i].number_submatch,
+                            regex_data->matches[i].start,
+                            regex_data->matches[i].end,
+                            regex_data->matches[i].string
+                        );
+                    } 
+                }
+                else
+                {
+                    if (PRINT_COLORED == 1)
+                    {
+                        if (regex_data->num_pattern_subexpr > 0 && regex_data->matches[i].number_submatch == 0)
+                        {
+                            sprintf(output_string, "\033[36m[%d]\033[0m\n\033[32mMatch:\033[0m     %d\n\033[32mSubmatch:\033[0m  %d\n\033[32mSubstring:\033[0m \033[35m%s\033[0m\n",
+                                i + 1,
+                                regex_data->matches[i].number_match,
+                                regex_data->matches[i].number_submatch,
+                                regex_data->matches[i].string
+                            ); 
+                        }
+                        else
+                        {
+                            sprintf(output_string, "\033[36m[%d]\033[0m\n\033[32mMatch:\033[0m     %d\n\033[32mSubmatch:\033[0m  %d\n\033[32mSubstring:\033[0m %s\n",
+                                i + 1,
+                                regex_data->matches[i].number_match,
+                                regex_data->matches[i].number_submatch,
+                                regex_data->matches[i].string
+                            ); 
+                        }
+                        
+                    }
+                    else
+                    {
+                        sprintf(output_string, "[%d]\nMatch      %d\nSubmatch:  %d\nSubstring: %s\n",
+                            i + 1,
+                            regex_data->matches[i].number_match,
+                            regex_data->matches[i].number_submatch,
+                            regex_data->matches[i].string
+                        );
+                    } 
+                }
+                
 
                 if (i < regex_data->num_matches-1)
                 {
@@ -948,13 +1240,25 @@ regex_data->num_matches);
             {
                 /* set all values and substring*/
                 output_string = __REALLOC(output_string, (strlen(regex_data->matches[i].string) + 256) * sizeof(char));
-                sprintf(output_string, "%d;%d;%d;%d;%d;%s;\n",
-                    i, regex_data->matches[i].number_match,
-                    regex_data->matches[i].number_submatch,
-                    regex_data->matches[i].start,
-                    regex_data->matches[i].end,
-                    substring
-                );
+
+                if (print_position)
+                {
+                    sprintf(output_string, "%d;%d;%d;%d;%d;%s;\n",
+                        i, regex_data->matches[i].number_match,
+                        regex_data->matches[i].number_submatch,
+                        regex_data->matches[i].start,
+                        regex_data->matches[i].end,
+                        substring
+                    );
+                }
+                else
+                {
+                    sprintf(output_string, "%d;%d;%d;%s;\n",
+                        i, regex_data->matches[i].number_match,
+                        regex_data->matches[i].number_submatch,
+                        substring
+                    );
+                }
 
                 /* concatinate result substring to output */
                 result_string = __REALLOC(result_string, (strlen(result_string) + strlen(output_string) + 32) * sizeof(char));
@@ -966,22 +1270,74 @@ regex_data->num_matches);
 
                 /* set all values and substring*/
                 output_string = __REALLOC(output_string, (strlen(regex_data->matches[i].string) + 256) * sizeof(char));
-                sprintf(output_string, "\t\t{\n\
+
+                if (print_position)
+                {
+                    if (PRINT_COLORED == 1)
+                    {
+                        sprintf(output_string, "\t\t{\n\
+\t\t\t\033[32m\"match-number\":\033[0m %d\033[90m,\033[0m\n\
+\t\t\t\033[32m\"group-number\":\033[0m %d\033[90m,\033[0m\n\
+\t\t\t\033[32m\"sub-string\":\033[0m \"%s\"\033[90m,\033[0m\n\
+\t\t\t\033[32m\"start\":\033[0m %d\033[90m,\033[0m\n\
+\t\t\t\033[32m\"end\":\033[0m %d\n",
+                        regex_data->matches[i].number_match,
+                        regex_data->matches[i].number_submatch,
+                        substring,
+                        regex_data->matches[i].start,
+                        regex_data->matches[i].end);
+                    }
+                    else
+                    {
+                        sprintf(output_string, "\t\t{\n\
 \t\t\t\"match-number\": %d,\n\
 \t\t\t\"group-number\": %d,\n\
 \t\t\t\"sub-string\": \"%s\",\n\
 \t\t\t\"start\": %d,\n\
 \t\t\t\"end\": %d\n",
-regex_data->matches[i].number_match,
-regex_data->matches[i].number_submatch,
-substring,
-regex_data->matches[i].start,
-regex_data->matches[i].end);
+                        regex_data->matches[i].number_match,
+                        regex_data->matches[i].number_submatch,
+                        substring,
+                        regex_data->matches[i].start,
+                        regex_data->matches[i].end);
+                    }
+                }
+                else
+                {
+                    if (PRINT_COLORED == 1)
+                    {
+                        sprintf(output_string, "\t\t{\n\
+\t\t\t\033[32m\"match-number\":\033[0m %d\033[90m,\033[0m\n\
+\t\t\t\033[32m\"group-number\":\033[0m %d\033[90m,\033[0m\n\
+\t\t\t\033[32m\"sub-string\":\033[0m \"%s\"\n",
+                        regex_data->matches[i].number_match,
+                        regex_data->matches[i].number_submatch,
+                        substring);
+                    }
+                    else
+                    {
+                        sprintf(output_string, "\t\t{\n\
+\t\t\t\"match-number\": %d,\n\
+\t\t\t\"group-number\": %d,\n\
+\t\t\t\"sub-string\": \"%s\"\n",
+                        regex_data->matches[i].number_match,
+                        regex_data->matches[i].number_submatch,
+                        substring);
+                    }
+                }
+
                 strcat(output_string, "\t\t}");
                 
                 if (i < regex_data->num_matches-1)
                 {
-                    strcat(output_string, ",\n");
+                     if (PRINT_COLORED == 1)
+                    {
+                        strcat(output_string, "\033[90m,\033[0m\n");
+                    }
+                    else
+                    {
+                        strcat(output_string, ",\n");
+                    }
                 }
                 else
                 {
@@ -1042,14 +1398,16 @@ static char* _PRINT__GET_OUTPUT_STRING(RegEx regex_data, int PRINT_LAYOUT)
     {
         PRINT_LAYOUT = PRINT_LAYOUT - REGEX_PRINT_NORESULTS;
     }
+    if ((PRINT_LAYOUT & REGEX_PRINT_NOINDEX) == REGEX_PRINT_NOINDEX)
+    {
+        PRINT_LAYOUT = PRINT_LAYOUT - REGEX_PRINT_NOINDEX;
+    }
     if ((PRINT_LAYOUT & REGEX_PRINT_FILTER) == REGEX_PRINT_FILTER)
     {
         PRINT_LAYOUT = PRINT_LAYOUT - REGEX_PRINT_FILTER;
     }
 
-    if (PRINT_LAYOUT != REGEX_PRINT_PLAIN &&
-        PRINT_LAYOUT != REGEX_PRINT_CSV &&
-        PRINT_LAYOUT != REGEX_PRINT_JSON)
+    if (1)
     {
         temp_string = _PRINT__CONCAT_OPTION_FLAGS(regex_data);
 
@@ -1088,7 +1446,8 @@ static char* _PRINT__GET_OUTPUT_STRING(RegEx regex_data, int PRINT_LAYOUT)
             regex_data,
             PRINT_LAYOUT,
             !((PRINT_OPTIONS & REGEX_PRINT_NOTEXT) == REGEX_PRINT_NOTEXT &&
-              (PRINT_OPTIONS & REGEX_PRINT_NOSTATS) == REGEX_PRINT_NOSTATS)
+              (PRINT_OPTIONS & REGEX_PRINT_NOSTATS) == REGEX_PRINT_NOSTATS),    /* print header or not */
+            !((PRINT_OPTIONS & REGEX_PRINT_NOINDEX) == REGEX_PRINT_NOINDEX)         /* print match position or not */
         );
 
         output_string =__REALLOC(output_string, (strlen(output_string) + strlen(temp_string) + 32) * sizeof(char));
@@ -1700,10 +2059,37 @@ int regex_writefile(RegEx regex_data, int PRINT_LAYOUT, char* file_name)
                 {
                     printf("\n");
                 }
+
+                if (PRINT_COLORED == 1)
+                {
+                    PRINT_COLORED = 2;
+                }
+
                 /* full_filepath = realpath(file_name, NULL); // not ANSI or Windows compatible */
-                output_string = _PRINT__GET_OUTPUT_STRING(regex_data, PRINT_LAYOUT);
-                printf("Output file:      %s\n", file_name);
-                printf("Filesize:         %.2f KB\n", (double)(strlen(output_string) / 1024.0));
+                if ((PRINT_LAYOUT & REGEX_PRINT_JSON) == REGEX_PRINT_JSON)
+                {
+                    output_string = _PRINT__GET_OUTPUT_STRING(regex_data, PRINT_LAYOUT | REGEX_PRINT_NOTEXT | REGEX_PRINT_NOSTATS);
+                }
+                else
+                {
+                    output_string = _PRINT__GET_OUTPUT_STRING(regex_data, PRINT_LAYOUT);
+                }
+
+                if (PRINT_COLORED == 2)
+                {
+                    PRINT_COLORED = 1;
+                }
+
+                if (PRINT_COLORED == 1)
+                {
+                    printf("\033[34mOutput file:\033[0m      %s\n", file_name);
+                    printf("\033[34mFilesize:\033[0m         %.2f KB\n", (double)(strlen(output_string) / 1024.0));
+                }
+                else
+                {
+                    printf("Output file:      %s\n", file_name);
+                    printf("Filesize:         %.2f KB\n", (double)(strlen(output_string) / 1024.0));
+                }
                 
                 if (fprintf(file_ptr, "%s", output_string) < 0)
                 {

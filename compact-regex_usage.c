@@ -10,6 +10,25 @@ void simple_usage()
     regex_close(regex_data);
 }
 
+/* example for most simple regex (only statistics) */
+void simple_usage_only_statistics()
+{
+    /* simple matching with regex_match(char* input_text_string, char* regex_pattern_string, int OPTION_FLAGS) */
+    RegEx regex_data = regex_match("abc 123 ABC xyz 456789 abc", "abc ((xy)z) (\\d{2})", REG_ICASE);
+    printf("\nExample of simple usage:\n------------------------\n");
+    regex_print(regex_data, REGEX_PRINT_TABLE | REGEX_PRINT_NOTEXT | REGEX_PRINT_NORESULTS);
+    regex_close(regex_data);
+}
+
+
+/* example for most simple regex (colored ANSI output) */
+void simple_usage_with_colors()
+{
+    /* simple matching with regex_match(char* input_text_string, char* regex_pattern_string, int OPTION_FLAGS) */
+    PRINT_COLORED = 1;
+    simple_usage();
+}
+
 /* example for single step regex-parser */
 void extended_usage()
 {
@@ -113,9 +132,12 @@ int main(int argc, char* argv[])
     if (argc < 2)
     {
         printf(" [1] simple_usage()\n\
- [2] extended_usage()\n\
- [3] replace_strings()\n\
- [4] replace_multiple_strings()\n\
+ [2] simple_usage_only_statistics()\n\
+ [3] simple_usage_with_colors()\n\
+ [4] extended_usage()\n\
+ [5] replace_strings()\n\
+ [6] replace_multiple_strings()\n\n\
+ [0] exit\n\
 \n\
 Select an example function by the number: ");
 
@@ -130,17 +152,33 @@ Select an example function by the number: ");
                 }
                 case 2:
                 {
-                    extended_usage();
+                    simple_usage_only_statistics();
                     break;
                 }
                 case 3:
                 {
+                    simple_usage_with_colors();
+                    break;
+                }
+                
+                case 4:
+                {
+                    extended_usage();
+                    break;
+                }
+                case 5:
+                {
                     replace_strings();
                     break;
                 }
-                case 4:
+                case 6:
                 {
                     replace_multiple_strings();
+                    break;
+                }
+                case 0:
+                {
+                    exit(EXIT_SUCCESS);
                     break;
                 }
                 default:

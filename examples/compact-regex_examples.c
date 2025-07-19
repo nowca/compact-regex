@@ -227,7 +227,8 @@ int main(int argc, char* argv[])
 [11] validate_time_format()\n\
 [12] validate_timestamp()\n\
 [13] get_youtube_url()\n\
-[14] special_characters()\n\
+[14] special_characters()\n\n\
+[0]  exit\n\
 \n\
 Select an example function by the number: ");
     }
@@ -300,6 +301,11 @@ Select an example function by the number: ");
             case 13:
             {
                 get_youtube_url();
+                break;
+            }
+            case 0:
+            {
+                exit(EXIT_SUCCESS);
                 break;
             }
 /* only if compiler-version is above c99 and linux terminal */            

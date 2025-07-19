@@ -42,7 +42,6 @@ unsigned int MAX_PRINT_TEXT_LENGTH = 512;
 unsigned int MAX_FILENAME_LENGTH = 512;
 
 /* Extended option flags */
-#define REG_NONE 0
 #define REG_DEFAULT 0
 #define REG_GLOBAL (1 << 4)
 #define REG_MULTILINE (1 << 5)
@@ -174,7 +173,7 @@ static char* _PRINT__GET_TEXT_STRING(RegEx regex_data);
 static char* _PRINT__GET_REGEX_STATS(RegEx regex_data, char* option_flags_string);
 
 /* (Internal) Processes the result data string of the RegEx Object for printing or writing  */
-static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT, int print_header);
+static char* _PRINT__GET_RESULTS(RegEx regex_data, int PRINT_LAYOUT, int print_header, int print_pos);
 
 /* (Internal) Processes the complete string (text + data + results) for printing or writing  */
 static char* _PRINT__GET_OUTPUT_STRING(RegEx regex_data, int PRINT_LAYOUT);
@@ -228,7 +227,10 @@ extern int regex_writefile_string(char* output_string, char* file_name);
 #define REGEX_PRINT_NOTEXT (1 << 9)
 #define REGEX_PRINT_NOSTATS (1 << 10)
 #define REGEX_PRINT_NORESULTS (1 << 11)
-#define REGEX_PRINT_FILTER (1 << 12)
+#define REGEX_PRINT_NOINDEX (1 << 12)
+#define REGEX_PRINT_FILTER (1 << 13)
+
+unsigned int PRINT_COLORED = 0;
 
 /* Prints the input text and the regular expression results and contents of a
    RegEx Object as a table or as a list. */

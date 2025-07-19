@@ -14,6 +14,7 @@ The program is using the POSIX-compatible [*Basic Regular Expressions (BRE)*](#b
 * use of single-letter character classes like `\d` or `\s`
 * handling of ASCII- and Unicode escape sequences
 * string replacement with group substitution
+* formatted terminal output functions
 * file read processing and export functions
 
 <br>
@@ -52,6 +53,7 @@ The program is using the POSIX-compatible [*Basic Regular Expressions (BRE)*](#b
 - [Program options](#program-functions)
     - [Option flags](#option-flags)
     - [Print layout](#print-layout)
+    - [Colored terminal output](#colored-terminal-output)
 - [RegEx Object](#regex-object)
 - [POSIX Standard](#posix-standard)
     - [Basic Regular Syntax](#basic-regular-syntax)
@@ -376,6 +378,8 @@ void regex_print(RegEx regex, int PRINT_LAYOUT)
 ```
 Prints the *input text* and the *regular expression results* and contents of a [`RegEx`](#regex-object) Object as a table or as a list with a given [print layout](#print-layout).
 
+The terminal screen output can be set to colored ANSI output with the global variable `PRINT_COLORED` 
+
 <br>
 
 ### set_default_reg_flags()
@@ -564,6 +568,8 @@ The *print layout flag* can be extended with a additional *layout filter flag*:
 
 * `REGEX_PRINT_NORESULTS` - don't print the results of the regular expression execution
 
+* `REGEX_PRINT_NOINDEX` - don't print the index positions of the results
+
 <br>
 
 You can use the layout printing flag and its filters like this:
@@ -573,6 +579,16 @@ regex_print(regex_data, REGEX_PRINT_TABLE | REGEX_PRINT_NOTEXT | REGEX_PRINT_NOS
 ```
 
 - This prints just the results as a table ***without** the input text string* and ***without** the regular expression statistics*.
+
+<br>
+
+### Colored terminal output
+
+The terminal screen output can be set to colored ANSI text:
+```c
+/* Prints the terminal output in colored ANSI text */
+unsigned int PRINT_COLORED = 0;
+```
 
 <br>
 
